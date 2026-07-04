@@ -1,0 +1,109 @@
+# ============================================================
+# buddy / docker-compose（開発環境・本番寄り構成）
+#
+#   nginx     : 受付（HTTP/静的配信）。PHPは api へ委譲
+#   api       : PHP本体（php-fpm）★これが「PHPコンテナ」
+#   reverb    : WebSocketサーバー（api と同じイメージを再利用）
+#   queue     : キュー/ブロードキャストのワーカー（同上）
+#   web       : Next.js 開発サーバー
+#   mysql     : 永続データ
+#   redis     : キャッシュ / キュー / Reverbスケール用
+# ============================================================
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-8000}:80"            # http://localhost:8000 → Laravel(API)
+    volumes:
+      - ./api:/var/www/html
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - api
+    networks: [buddy]
+
+  api:
+    build: ./api
+    restart: unless-stopped
+    volumes:
+      - ./api:/var/www/html
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks: [buddy]
+
+  reverb:
+    build: ./api                          # api と同じイメージ。起動コマンドだけ変える
+    restart: unless-stopped
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    ports:
+      - "${REVERB_PORT:-8080}:8080"
+    volumes:
+      - ./api:/var/www/html
+    depends_on:
+      - api
+      - redis
+    networks: [buddy]
+
+  queue:
+    build: ./api                          # api と同じイメージ
+    restart: unless-stopped
+    command: php artisan queue:work --tries=3 --timeout=90
+    volumes:
+      - ./api:/var/www/html
+    depends_on:
+      - api
+      - redis
+      - mysql
+    networks: [buddy]
+
+  web:
+    build: ./web
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    volumes:
+      - ./web:/app
+      - web_node_modules:/app/node_modules    # node_modules はボリュームに隔離
+    environment:
+      - WATCHPACK_POLLING=true            # Mac/Windows でのファイル監視対策
+    networks: [buddy]
+
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-buddy}
+      MYSQL_USER: ${DB_USERNAME:-buddy}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${DB_ROOT_PASSWORD:-root}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [buddy]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks: [buddy]
+
+volumes:
+  mysql_data:
+  redis_data:
+  web_node_modules:
+
+networks:
+  buddy:
+    driver: bridge

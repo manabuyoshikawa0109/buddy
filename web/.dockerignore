@@ -1,0 +1,25 @@
+# Git
+.git
+.gitignore
+
+# 依存（イメージ内で入れ直すため除外）
+node_modules
+
+# ビルド成果物（イメージ内で生成）
+.next
+out
+
+# 環境・秘密（ローカル専用）
+.env*.local
+
+# Docker メタファイル
+Dockerfile
+.dockerignore
+
+# ログ / OS / エディタ
+npm-debug.log*
+yarn-error.log*
+*.log
+.DS_Store
+.vscode
+.idea

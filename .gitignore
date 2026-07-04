@@ -1,0 +1,24 @@
+# ---- 秘密情報（コンテナ構成用 .env） ----
+.env
+
+# ---- Laravel ----
+/api/vendor/
+/api/.env
+/api/.env.backup
+/api/storage/*.key
+/api/storage/logs/*.log
+/api/.phpunit.result.cache
+/api/public/storage
+
+# ---- Next.js ----
+/web/node_modules/
+/web/.next/
+/web/out/
+/web/.env*.local
+
+# ---- OS / エディタ ----
+.DS_Store
+*.log
+.idea/
+.vscode/*
+!.vscode/extensions.json

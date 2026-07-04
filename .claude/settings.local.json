@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sw_vers -productVersion)",
+      "Bash(echo \"macOS: $\\(sw_vers -productVersion \\)\")",
+      "Read(//Applications/Docker.app/**)",
+      "Read(//Applications/Docker.app/Contents/Resources/bin/**)",
+      "Bash(/usr/bin/pgrep -q oahd)"
+    ]
+  }
+}
